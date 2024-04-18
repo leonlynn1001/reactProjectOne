@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import {  Fragment, useEffect, useRef, useState } from "react";
 
 function getName(name){
   return name;
@@ -6,6 +6,7 @@ function getName(name){
 //useState,useEffect,custom hook,reusable component
 const App = () => {
   const [searchTerm,setSearchTerm]=useStorageState("search","react")
+  
   const articles = [
     {
       title:"React",
@@ -41,7 +42,7 @@ const App = () => {
       <h1>Hacker News</h1>
       <h2>Hello {getName("Caleb")}</h2>
       {/* controlled component cauz sense with state(searchTerm) */}
-      <InputWithLabel onInputChange={handlesearch} value={searchTerm} id="search"  label="Search"/>
+      <InputWithLabel onInputChange={handlesearch} value={searchTerm} id="search" isFocused>Search</InputWithLabel>
       <hr/>
       <ArticleList list={searchArticles} />
       <h3>Hello</h3>
@@ -58,12 +59,17 @@ const useStorageState = (storageKey,initialState)=>{
 }
 //reusable component
 // eslint-disable-next-line react/prop-types
-function InputWithLabel({value,onInputChange,id,type="text",label}){
-  
+function InputWithLabel({value,onInputChange,id,type="text",children,isFocused}){
+  const inputRef = useRef();
+  useEffect(()=>{
+    if(isFocused  && inputRef.current){
+      inputRef.current.focus();
+    }
+  },[isFocused]);
   return (
     <Fragment>
-      <label htmlFor={id}>{label}</label>
-      <input onChange={onInputChange} type={type} id={id} value={value}/>
+      <label htmlFor={id}>{children}</label>
+      <input onChange={onInputChange} type={type} id={id} value={value} ref={inputRef}/>
       <p>{value}</p>
     </Fragment>
   )
