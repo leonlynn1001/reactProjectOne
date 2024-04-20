@@ -31,13 +31,23 @@ const App = () => {
     }
   ]
   const [searchTerm,setSearchTerm]=useStorageState("search","")
-  const [stories,setStories]=useState(initialStories);
+  const [stories,setStories]=useState([]);
   const [isLoading,setIsLoading] = useState(false);
+  const [isError,setIsError] = useState(false);
   //mock API fetching
   const getASyncStories=()=>{
     return new Promise((resolve)=>setTimeout(resolve({data:initialStories}),2000))
   }
- 
+ useEffect(()=>{
+  setIsLoading(true);
+  getASyncStories().then(result=>{
+    setStories(result.data);
+    setIsLoading(false);
+  })
+  .catch(()=>setIsError(true));
+  
+
+ },[])
   const handleRemoveStory=(item)=>{
     const newStories = stories.filter(story=>story.objectId!=item.objectId);
     setStories(newStories);
@@ -49,9 +59,7 @@ const App = () => {
     setSearchTerm(e.target.value)
   }
   const searchArticles = initialStories.filter(article=>article.title.toLocaleLowerCase().includes(searchTerm.toLocaleLowerCase()));
-  if(isLoading){
-    return <p>Loading....</p>
-  }
+ 
   return (
     <div>
       <h1>Hacker News</h1>
@@ -59,7 +67,13 @@ const App = () => {
       {/* controlled component cauz sense with state(searchTerm) */}
       <InputWithLabel onInputChange={handlesearch} value={searchTerm} id="search" isFocused>Search</InputWithLabel>
       <hr/>
-      <ArticleList list={searchArticles} handleRemoveStory={handleRemoveStory}/>
+      {
+        isError?<p>Something went wrong!</p>:null
+      }
+      {
+        isLoading?(<p>Loading....</p>):( <ArticleList list={searchArticles} handleRemoveStory={handleRemoveStory}/>)
+      }
+     
 
      
     </div>
