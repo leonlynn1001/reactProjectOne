@@ -1,3 +1,5 @@
+/* eslint-disable react/prop-types */
+/* eslint-disable no-unused-vars */
 import {  Fragment, useEffect, useRef, useState } from "react";
 
 function getName(name){
@@ -5,38 +7,51 @@ function getName(name){
 }
 //useState,useEffect,custom hook,reusable component
 const App = () => {
-  const [searchTerm,setSearchTerm]=useStorageState("search","react")
-  
-  const articles = [
+  const initialStories = [
     {
       title:"React",
       url:"https://reactjs.org/",
       num_comments:3,
       points:4,
-      ojbectId:0,
+      objectId:0,
     },
     {
       title:"Redux",
       url:"https://reduct.js.org/",
       num_comments:2,
       points:5,
-      ojbectId:1,
+      objectId:1,
     },
     {
       title:"React and Redux",
       url:"https://reduct.js.org/",
       num_comments:2,
       points:5,
-      ojbectId:3,
+      objectId:2,
     }
   ]
-  
+  const [searchTerm,setSearchTerm]=useStorageState("search","")
+  const [stories,setStories]=useState(initialStories);
+  const [isLoading,setIsLoading] = useState(false);
+  //mock API fetching
+  const getASyncStories=()=>{
+    return new Promise((resolve)=>setTimeout(resolve({data:initialStories}),2000))
+  }
+ 
+  const handleRemoveStory=(item)=>{
+    const newStories = stories.filter(story=>story.objectId!=item.objectId);
+    setStories(newStories);
+    console.log(newStories);
+  }
+ 
   function handlesearch(e){
     console.log(e.target.value);
     setSearchTerm(e.target.value)
   }
-  const searchArticles = articles.filter(article=>article.title.toLocaleLowerCase().includes(searchTerm.toLocaleLowerCase()));
-  
+  const searchArticles = initialStories.filter(article=>article.title.toLocaleLowerCase().includes(searchTerm.toLocaleLowerCase()));
+  if(isLoading){
+    return <p>Loading....</p>
+  }
   return (
     <div>
       <h1>Hacker News</h1>
@@ -44,8 +59,9 @@ const App = () => {
       {/* controlled component cauz sense with state(searchTerm) */}
       <InputWithLabel onInputChange={handlesearch} value={searchTerm} id="search" isFocused>Search</InputWithLabel>
       <hr/>
-      <ArticleList list={searchArticles} />
-      <h3>Hello</h3>
+      <ArticleList list={searchArticles} handleRemoveStory={handleRemoveStory}/>
+
+     
     </div>
   )
 }
@@ -53,12 +69,12 @@ const App = () => {
 const useStorageState = (storageKey,initialState)=>{
   const [value,setValue]=useState(localStorage.getItem(storageKey)||initialState);
   useEffect(()=>{
-    localStorage.setItem("search",value)
+    localStorage.setItem(storageKey,value)
   },[storageKey,value]);
   return [value,setValue];
 }
 //reusable component
-// eslint-disable-next-line react/prop-types
+
 function InputWithLabel({value,onInputChange,id,type="text",children,isFocused}){
   const inputRef = useRef();
   useEffect(()=>{
@@ -74,30 +90,27 @@ function InputWithLabel({value,onInputChange,id,type="text",children,isFocused})
     </Fragment>
   )
 }
-// eslint-disable-next-line react/prop-types
-function ArticleList({list}){
+
+function ArticleList({list,handleRemoveStory}){
  
   console.log(list)
   return(
     <ul>
      {
-      // eslint-disable-next-line react/prop-types
-      list.map(item=>(<Article article={item} key={item.ojbectId}/>))
+  
+      list.map(item=>(<Article article={item} key={item.objectId} handleRemoveStory={handleRemoveStory}/>))
      }
     </ul>
   )
 }
-// eslint-disable-next-line react/prop-types
-function Article({article}){
-  // eslint-disable-next-line react/prop-types
-  const {url,title,author,num_comments,points} = article;
+
+function Article({article,handleRemoveStory}){
+
+  const {url,title,num_comments,points} = article;
   return(
     <li>
       <span>
         <a href={url}>{title}</a>
-      </span>
-      <span>
-        {author}
       </span>
       <span>
         {num_comments}
@@ -105,6 +118,9 @@ function Article({article}){
       <span>
         {points}
       </span>
+      <button onClick={handleRemoveStory.bind(null,article)}>
+        delete
+      </button>
     </li>
     
   )
