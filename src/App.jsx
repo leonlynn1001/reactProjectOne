@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
 /* eslint-disable no-unused-vars */
-import {  Fragment, useEffect, useRef, useState } from "react";
+import {  Fragment, useEffect, useReducer, useRef, useState } from "react";
 
 function getName(name){
   return name;
@@ -31,27 +31,70 @@ const App = () => {
     }
   ]
   const [searchTerm,setSearchTerm]=useStorageState("search","")
-  const [stories,setStories]=useState([]);
+  //const [stories,setStories]=useState([]);
   const [isLoading,setIsLoading] = useState(false);
   const [isError,setIsError] = useState(false);
   //mock API fetching
-  const getASyncStories=()=>{
+  const storiesReducer=(state,action)=>{
+    switch(action.type){
+      case "STORIES_FETCH_INIT":
+        return {
+          ...state,
+          isLoading:true,
+        };
+      case "STORIES_FETCH_SUCCESS":
+        return {
+          ...state,
+          isLoading:false,
+          isError:false,
+          data:action.payload,
+        };
+      case "STORIES_FETCH_FAILURE":
+        return {
+          ...state,
+          isLoading:false,
+          isError:true,
+        };
+      case "REMOVE_STORY":
+        return {
+          ...state,
+          data:state.data.filter((story)=>story.objectId!=action.payload.objectId)
+        };
+      default:
+        throw new Error();
+    }
+    
+   
+  }
+  const getAsyncStories=()=>{
     return new Promise((resolve)=>setTimeout(resolve({data:initialStories}),2000))
   }
- useEffect(()=>{
+  //useReducer
+  const [stories,dispatchStories]=useReducer(storiesReducer,{
+    data:[],
+    isLoading:false,
+    isError:false
+  })
+  useEffect(()=>{
   setIsLoading(true);
-  getASyncStories().then(result=>{
-    setStories(result.data);
+  getAsyncStories().then(result=>{
+    //setStories(result.data);
+    dispatchStories({type:"SET_STORIES",payload:result.data});
     setIsLoading(false);
   })
   .catch(()=>setIsError(true));
   
-
  },[])
   const handleRemoveStory=(item)=>{
-    const newStories = stories.filter(story=>story.objectId!=item.objectId);
-    setStories(newStories);
-    console.log(newStories);
+    //const newStories = stories.filter(story=>story.objectId!=item.objectId);
+    //setStories(newStories);
+    console.log(item)
+    dispatchStories({
+      type:"REMOVE_STORY",
+      //payload:newStories,
+      payload:item,
+    });
+  
   }
  
   function handlesearch(e){
@@ -132,7 +175,7 @@ function Article({article,handleRemoveStory}){
       <span>
         {points}
       </span>
-      <button onClick={handleRemoveStory.bind(null,article)}>
+      <button onClick={()=>handleRemoveStory(article)}>
         delete
       </button>
     </li>
