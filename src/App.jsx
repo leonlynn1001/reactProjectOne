@@ -1,10 +1,15 @@
 /* eslint-disable react/prop-types */
 /* eslint-disable no-unused-vars */
-import {  Fragment, useEffect, useReducer, useRef, useState } from "react";
-
+import {  Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import InputWithLabel from "./components/InputWithLabel";
+import ArticleList from "./components/ArticleList";
+import useStorageState from "./hooks/useStorageState";
+import axios from "axios";
+import "./index.css";
 function getName(name){
   return name;
 }
+const API_ENDPOINT = "http://hn.algolia.com/api/v1/search?query=";
 //useState,useEffect,custom hook,reusable component
 const App = () => {
   const initialStories = [
@@ -29,11 +34,8 @@ const App = () => {
       points:5,
       objectId:2,
     }
-  ]
+  ];
   const [searchTerm,setSearchTerm]=useStorageState("search","")
-  //const [stories,setStories]=useState([]);
-  const [isLoading,setIsLoading] = useState(false);
-  const [isError,setIsError] = useState(false);
   //mock API fetching
   const storiesReducer=(state,action)=>{
     switch(action.type){
@@ -58,7 +60,7 @@ const App = () => {
       case "REMOVE_STORY":
         return {
           ...state,
-          data:state.data.filter((story)=>story.objectId!=action.payload.objectId)
+          data:state.data.filter((story)=>story.objectID!=action.payload.objectID)
         };
       default:
         throw new Error();
@@ -74,112 +76,83 @@ const App = () => {
     data:[],
     isLoading:false,
     isError:false
-  })
+  });
+  const [url,setUrl] = useState(`${API_ENDPOINT}${searchTerm}`);
+  function calculateSumOfComments(items){
+    return items.data.reduce((result,value)=>result+value.num_comments,0);
+  }
+  const sumOfComments=useMemo(()=>calculateSumOfComments(stories),[stories]);
+
+  const handleFetch = useCallback(async ()=>{
+   // if(!searchTerm) return;
+    //setIsLoading(true);
+    dispatchStories({type: "STORIES_FETCH_INIT"});
+    try{
+      const result =await axios.get(url);
+        dispatchStories({
+          type:"STORIES_FETCH_SUCCESS",
+          payload:result.data.hits,
+        })
+    }catch{
+        dispatchStories({type:"STORIES_FETCH_FAILURE"})
+    }
+  },[url]);
+ 
   useEffect(()=>{
-  setIsLoading(true);
+  handleFetch();
+  /*
   getAsyncStories().then(result=>{
     //setStories(result.data);
-    dispatchStories({type:"SET_STORIES",payload:result.data});
-    setIsLoading(false);
+    dispatchStories({type:"STORIES_FETCH_SUCCESS",payload:result.data});
+    //setIsLoading(false);
   })
-  .catch(()=>setIsError(true));
-  
- },[])
-  const handleRemoveStory=(item)=>{
+  .catch(()=>{
+    //setIsError(true)
+    dispatchStories({type:"STORIES_FETCH_FAILURE"})
+  });
+  */
+ },[handleFetch]);
+  const handleRemoveStory=useCallback((item)=>{
     //const newStories = stories.filter(story=>story.objectId!=item.objectId);
     //setStories(newStories);
-    console.log(item)
     dispatchStories({
       type:"REMOVE_STORY",
       //payload:newStories,
       payload:item,
     });
-  
-  }
- 
-  function handlesearch(e){
+  },[]);
+ const handleSubmit=(e)=>{
+  e.preventDefault();
+  setUrl(`${API_ENDPOINT}${searchTerm}`);
+ }
+  function handleSearch(e){
     console.log(e.target.value);
     setSearchTerm(e.target.value)
   }
-  const searchArticles = initialStories.filter(article=>article.title.toLocaleLowerCase().includes(searchTerm.toLocaleLowerCase()));
+  const searchArticles = stories.data.filter(item=>item.title.toLocaleLowerCase().includes(searchTerm.toLocaleLowerCase()));
  
   return (
-    <div>
-      <h1>Hacker News</h1>
+    <section className="container">
+      <h1 className="headline">Hacker News</h1>
       <h2>Hello {getName("Caleb")}</h2>
       {/* controlled component cauz sense with state(searchTerm) */}
-      <InputWithLabel onInputChange={handlesearch} value={searchTerm} id="search" isFocused>Search</InputWithLabel>
+      <form onSubmit={handleSubmit}>
+      <InputWithLabel onInputChange={handleSearch} value={searchTerm} id="search" isFocused>Search</InputWithLabel>
+      <button type="submit">Search</button>
       <hr/>
       {
-        isError?<p>Something went wrong!</p>:null
+        stories.isError?<p>Something went wrong!</p>:null
       }
       {
-        isLoading?(<p>Loading....</p>):( <ArticleList list={searchArticles} handleRemoveStory={handleRemoveStory}/>)
+        stories.isLoading?(<p>Loading....</p>):( <ArticleList list={stories.data} handleRemoveStory={handleRemoveStory}/>)
       }
      
-
-     
-    </div>
-  )
-}
-//custom hook
-const useStorageState = (storageKey,initialState)=>{
-  const [value,setValue]=useState(localStorage.getItem(storageKey)||initialState);
-  useEffect(()=>{
-    localStorage.setItem(storageKey,value)
-  },[storageKey,value]);
-  return [value,setValue];
-}
-//reusable component
-
-function InputWithLabel({value,onInputChange,id,type="text",children,isFocused}){
-  const inputRef = useRef();
-  useEffect(()=>{
-    if(isFocused  && inputRef.current){
-      inputRef.current.focus();
-    }
-  },[isFocused]);
-  return (
-    <Fragment>
-      <label htmlFor={id}>{children}</label>
-      <input onChange={onInputChange} type={type} id={id} value={value} ref={inputRef}/>
-      <p>{value}</p>
-    </Fragment>
+      </form>
+    </section>
   )
 }
 
-function ArticleList({list,handleRemoveStory}){
- 
-  console.log(list)
-  return(
-    <ul>
-     {
-  
-      list.map(item=>(<Article article={item} key={item.objectId} handleRemoveStory={handleRemoveStory}/>))
-     }
-    </ul>
-  )
-}
 
-function Article({article,handleRemoveStory}){
 
-  const {url,title,num_comments,points} = article;
-  return(
-    <li>
-      <span>
-        <a href={url}>{title}</a>
-      </span>
-      <span>
-        {num_comments}
-      </span>
-      <span>
-        {points}
-      </span>
-      <button onClick={()=>handleRemoveStory(article)}>
-        delete
-      </button>
-    </li>
-    
-  )
-}
+
 export default App
